@@ -1,0 +1,23 @@
+{
+  "name": "@ai-research-agent/mcp-servers",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prebuild": "npm run build -w @ai-research-agent/shared",
+    "build": "tsc -p tsconfig.json",
+    "pretypecheck": "npm run build -w @ai-research-agent/shared",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ai-research-agent/shared": "0.1.0",
+    "@google/generative-ai": "^0.21.0",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "pg": "^8.13.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.11.10"
+  }
+}

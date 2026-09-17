@@ -1,0 +1,49 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ai_research_agent
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ai_research_agent"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/ai_research_agent
+      FRONTEND_ORIGIN: http://localhost:5173
+      MCP_RESEARCH_ARGS: ../mcp-servers/dist/research/server.js
+      MCP_GITHUB_ARGS: ../mcp-servers/dist/github/server.js
+      MCP_MEMORY_ARGS: ../mcp-servers/dist/memory/server.js
+    ports:
+      - "4000:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: sh -c "npm run migrate -w backend && npm run dev -w backend"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    environment:
+      VITE_API_BASE: http://localhost:4000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    command: npm run dev -w frontend
+
+volumes:
+  postgres_data:
