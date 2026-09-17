@@ -1,5 +1,5 @@
-import { BookOpen, Brain, FileText, History, KeyRound, Library, Loader2, MessageSquare, Play, Plus, Search, ShieldCheck, Trash2, Wrench } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { BookOpen, Brain, FileText, History, Library, Loader2, MessageSquare, Mic, Play, Plus, Send, ShieldCheck, Trash2, Zap } from "lucide-react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import type { ActivityEvent } from "@ai-research-agent/shared";
 import { api, auth, researchStreamUrl, type AuthState } from "../api/client.js";
 
@@ -52,6 +52,7 @@ export function App() {
   const [busy, setBusy] = useState(false);
 
   const active = research.find((item) => item.id === activeId);
+  const activeRunning = busy || active?.status === "running";
   const completedResearch = research.filter((item) => item.status === "completed" && item.report);
 
   useEffect(() => {
@@ -168,10 +169,10 @@ export function App() {
 
   const navItems = useMemo(
     () => [
-      { id: "new", icon: Plus, label: "New Research" },
-      { id: "history", icon: History, label: "Research History" },
+      { id: "new", icon: Plus, label: "New research" },
+      { id: "history", icon: History, label: "Research history" },
       { id: "conversations", icon: MessageSquare, label: "Conversations" },
-      { id: "saved", icon: Library, label: "Saved Research" },
+      { id: "saved", icon: Library, label: "Saved research" },
       { id: "memory", icon: Brain, label: "Memory" }
     ] as const,
     []
@@ -180,7 +181,7 @@ export function App() {
   function renderMain() {
     if (activeView === "history") {
       return (
-        <ViewShell title="Research History" description="Review every run, reopen reports, and inspect failed attempts.">
+        <ViewShell title="Research history" description="Review every run, reopen reports, and inspect failed attempts.">
           <ResearchList items={research} empty="No research runs yet." onOpen={(id) => void openResearch(id, "history")} />
           <ResultPanel active={active} />
         </ViewShell>
@@ -190,15 +191,15 @@ export function App() {
     if (activeView === "conversations") {
       return (
         <ViewShell title="Conversations" description="Research sessions created when you start a question.">
-          <div className="grid gap-3">
+          <div className="stack-list">
             {conversations.length === 0 && <EmptyState>No conversations yet.</EmptyState>}
             {conversations.map((conversation) => (
-              <div key={conversation.id} className="rounded border border-slate-200 bg-white p-4">
-                <div className="flex items-start gap-3">
-                  <MessageSquare className="mt-1 h-4 w-4 text-accent" />
+              <div key={conversation.id} className="glass-card">
+                <div className="inline-row">
+                  <MessageSquare className="surface-icon" />
                   <div>
-                    <h3 className="font-medium">{conversation.title}</h3>
-                    <p className="mt-1 text-xs text-slate-500">Updated {formatDate(conversation.updated_at)}</p>
+                    <h3 className="card-title">{conversation.title}</h3>
+                    <p className="meta-text">Updated {formatDate(conversation.updated_at)}</p>
                   </div>
                 </div>
               </div>
@@ -210,7 +211,7 @@ export function App() {
 
     if (activeView === "saved") {
       return (
-        <ViewShell title="Saved Research" description="Completed reports ready to reopen with their sources and tool history.">
+        <ViewShell title="Saved research" description="Completed reports ready to reopen with their sources and tool history.">
           <ResearchList items={completedResearch} empty="No completed reports yet." onOpen={(id) => void openResearch(id, "saved")} />
           <ResultPanel active={active} />
         </ViewShell>
@@ -220,17 +221,17 @@ export function App() {
     if (activeView === "memory") {
       return (
         <ViewShell title="Memory" description="Durable preferences and reusable project context stored by the agent.">
-          <div className="grid gap-3">
+          <div className="stack-list">
             {memories.length === 0 && <EmptyState>No saved memories yet.</EmptyState>}
             {memories.map((memory) => (
-              <div key={memory.id} className="rounded border border-slate-200 bg-white p-4">
-                <div className="flex items-start justify-between gap-4">
+              <div key={memory.id} className="glass-card">
+                <div className="split-row">
                   <div>
-                    <p className="text-sm leading-6">{memory.content}</p>
-                    <p className="mt-2 text-xs text-slate-500">{memory.kind} - {formatDate(memory.created_at)}</p>
+                    <p className="body-text">{memory.content}</p>
+                    <p className="meta-text">{memory.kind} - {formatDate(memory.created_at)}</p>
                   </div>
-                  <button aria-label="Delete memory" className="rounded p-2 text-slate-500 hover:bg-mist hover:text-signal" onClick={() => void deleteMemory(memory.id)}>
-                    <Trash2 className="h-4 w-4" />
+                  <button aria-label="Delete memory" className="icon-button danger-button" onClick={() => void deleteMemory(memory.id)}>
+                    <Trash2 className="icon-sm" />
                   </button>
                 </div>
               </div>
@@ -243,23 +244,23 @@ export function App() {
     return (
       <>
         {runtimeStatus && <RuntimeStatusStrip status={runtimeStatus} />}
-        <section className="mb-5">
-          <textarea className="h-28 w-full resize-none rounded border border-slate-300 bg-white p-4 outline-accent" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Research recent developments in RAG, compare PostgreSQL and MongoDB, or analyze a GitHub repository URL..." />
-          {error && <p className="mt-2 text-sm text-signal">{error}</p>}
-          <button className="mt-3 inline-flex items-center gap-2 rounded bg-accent px-4 py-2 text-white disabled:opacity-60" disabled={busy} onClick={() => void startResearch()}>
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />} Start research
+        <section className={`glass-panel prompt-panel ${activeRunning ? "is-descending" : ""}`}>
+          <textarea className="prompt-input" value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Research recent developments in RAG, compare PostgreSQL and MongoDB, or analyze a GitHub repository URL..." />
+          {error && <p className="error-text">{error}</p>}
+          <button className="primary-action" disabled={busy} onClick={() => void startResearch()}>
+            {busy ? <Loader2 className="icon-sm spin" /> : <Play className="icon-sm" />} Start research
           </button>
         </section>
 
-        <section className="mb-6">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Agent Activity</h2>
-          <div className="rounded border border-slate-200 bg-white">
+        <section className={`glass-panel activity-panel ${activeRunning ? "is-rising" : ""}`}>
+          <SectionTitle>Agent activity</SectionTitle>
+          <div className="activity-list">
             {(events.length ? events : [{ message: "No active run selected.", createdAt: new Date().toISOString(), type: "research_started", researchId: "" } as ActivityEvent]).map((event, index) => (
-              <div key={`${event.createdAt}-${index}`} className="flex items-start gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0">
-                <Wrench className="mt-0.5 h-4 w-4 text-accent" />
+              <div key={`${event.createdAt}-${index}`} className="activity-row" style={{ "--stagger": `${Math.min(index, 8) * 70}ms` } as CSSProperties}>
+                <ActivityDot type={event.type} />
                 <div>
-                  <p className="text-sm">{event.message}</p>
-                  <p className="text-xs text-slate-500">{event.type}</p>
+                  <p className="body-text">{event.message}</p>
+                  <p className="meta-text">{toEventLabel(event.type)}</p>
                 </div>
               </div>
             ))}
@@ -273,18 +274,18 @@ export function App() {
 
   if (!authState) {
     return (
-      <main className="grid min-h-full place-items-center bg-mist px-4">
-        <section className="w-full max-w-sm rounded border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5 flex items-center gap-3">
-            <KeyRound className="h-5 w-5 text-accent" />
-            <h1 className="text-lg font-semibold">AI Research Agent</h1>
+      <main className="auth-screen">
+        <section className="glass-panel auth-panel">
+          <div className="brand-lockup">
+            <span className="brand-mark" aria-hidden="true">Z</span>
+            <h1>Zentriq.ai</h1>
           </div>
-          <input className="mb-3 w-full rounded border border-slate-300 px-3 py-2" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
-          <input className="mb-3 w-full rounded border border-slate-300 px-3 py-2" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" type="password" />
-          {error && <p className="mb-3 text-sm text-signal">{error}</p>}
-          <div className="flex gap-2">
-            <button className="flex-1 rounded bg-accent px-3 py-2 text-white" onClick={() => void signIn("login")}>Log in</button>
-            <button className="flex-1 rounded border border-slate-300 px-3 py-2" onClick={() => void signIn("register")}>Register</button>
+          <input className="auth-input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
+          <input className="auth-input" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" type="password" />
+          {error && <p className="error-text">{error}</p>}
+          <div className="auth-actions">
+            <button className="primary-action" onClick={() => void signIn("login")}>Log in</button>
+            <button className="secondary-action" onClick={() => void signIn("register")}>Register</button>
           </div>
         </section>
       </main>
@@ -292,50 +293,66 @@ export function App() {
   }
 
   return (
-    <div className="grid h-full grid-cols-[230px_minmax(0,1fr)_330px] overflow-hidden">
-      <aside className="border-r border-slate-200 bg-white p-4">
-        <div className="mb-6 flex items-center gap-2 text-lg font-semibold"><Search className="h-5 w-5 text-accent" /> AI Research</div>
-        <nav className="space-y-1">
+    <div className="app-shell">
+      <div className="top-dock" aria-label="Quick navigation">
+        {navItems.map(({ id, icon: Icon, label }) => (
+          <button key={id} aria-label={label} onClick={() => selectNav(id)} className={`dock-item ${activeView === id ? "is-active" : ""}`}>
+            <Icon className="icon-sm" />
+          </button>
+        ))}
+      </div>
+
+      <aside className="glass-rail sidebar-rail">
+        <div className="brand-lockup"><span className="brand-mark" aria-label="Zentriq.ai logo mark">Z</span> <span>Zentriq.ai</span></div>
+        <nav className="nav-list" aria-label="Primary navigation">
           {navItems.map(({ id, icon: Icon, label }) => (
-            <button key={id} onClick={() => selectNav(id)} className={`flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm ${activeView === id ? "bg-mist text-accent" : "hover:bg-mist"}`}>
-              <Icon className="h-4 w-4" />{label}
+            <button key={id} onClick={() => selectNav(id)} className={`nav-item ${activeView === id ? "is-active" : ""}`}>
+              <Icon className="icon-sm" />{label}
             </button>
           ))}
         </nav>
-        <div className="mt-8 text-xs text-slate-500">
-          <ShieldCheck className="mb-2 h-4 w-4 text-accent" />
+        <div className="sidebar-note">
+          <ShieldCheck className="icon-sm" />
           Real tools only. Missing providers surface as configuration errors.
         </div>
       </aside>
 
-      <main className="overflow-y-auto p-6">
+      <main className="main-stage">
         {renderMain()}
       </main>
 
-      <aside className="overflow-y-auto border-l border-slate-200 bg-white p-4">
-        <h2 className="mb-3 flex items-center gap-2 font-semibold"><BookOpen className="h-4 w-4 text-accent" /> Research History</h2>
-        <div className="mb-6 space-y-2">
+      <aside className="glass-rail right-rail">
+        <h2 className="rail-title"><BookOpen className="icon-sm" /> Research history</h2>
+        <div className="history-list">
           {research.map((item) => (
-            <button key={item.id} onClick={() => void loadDetails(item.id)} className="w-full rounded border border-slate-200 p-3 text-left text-sm hover:border-accent">
-              <span className="line-clamp-2 block">{item.question}</span>
-              <span className="mt-1 block text-xs text-slate-500">{item.status}</span>
+            <button key={item.id} onClick={() => void loadDetails(item.id)} className="history-card">
+              <span className="history-question">{item.question}</span>
+              <StatusBadge status={item.status} />
             </button>
           ))}
         </div>
         <Panel title="Sources" items={sources.map((s) => ({ title: s.title, meta: s.source_type ?? s.sourceType ?? "source", href: s.url }))} />
-        <Panel title="Tool Calls" items={toolCalls.map((t) => ({ title: `${t.server}.${t.tool_name ?? t.toolName}`, meta: t.success ? `${t.duration_ms ?? 0} ms` : t.error ?? "failed" }))} />
+        <Panel title="Tool calls" items={toolCalls.map((t) => ({ title: `${t.server}.${t.tool_name ?? t.toolName}`, meta: t.success ? `${t.duration_ms ?? 0} ms` : t.error ?? "failed" }))} />
         <Panel title="Memory" items={memories.map((m) => ({ title: m.content, meta: m.kind }))} />
       </aside>
+
+      <div className="command-bar" aria-label="Research command status">
+        <Mic className="command-icon" />
+        <span>{activeRunning ? "Agent is descending through sources" : "Ready for the next research run"}</span>
+        <button className="icon-button" aria-label="Start research from prompt" disabled={busy || !question.trim()} onClick={() => void startResearch()}>
+          <Send className="icon-sm" />
+        </button>
+      </div>
     </div>
   );
 }
 
 function ViewShell({ title, description, children }: { title: string; description: string; children: ReactNode }) {
   return (
-    <section>
-      <header className="mb-5">
-        <h1 className="text-xl font-semibold">{title}</h1>
-        <p className="mt-1 text-sm text-slate-500">{description}</p>
+    <section className="view-shell">
+      <header className="view-header">
+        <h1>{title}</h1>
+        <p>{description}</p>
       </header>
       {children}
     </section>
@@ -344,17 +361,18 @@ function ViewShell({ title, description, children }: { title: string; descriptio
 
 function ResearchList({ items, empty, onOpen }: { items: ResearchRow[]; empty: string; onOpen: (id: string) => void }) {
   return (
-    <div className="mb-6 grid gap-3">
+    <div className="stack-list">
       {items.length === 0 && <EmptyState>{empty}</EmptyState>}
       {items.map((item) => (
-        <button key={item.id} onClick={() => onOpen(item.id)} className="rounded border border-slate-200 bg-white p-4 text-left hover:border-accent">
-          <div className="flex items-start gap-3">
-            <FileText className="mt-1 h-4 w-4 text-accent" />
-            <div className="min-w-0 flex-1">
-              <h3 className="line-clamp-2 font-medium">{item.question}</h3>
-              <p className="mt-1 text-xs text-slate-500">{item.status} - {formatDate(item.created_at)}</p>
-              {item.error && <p className="mt-2 line-clamp-2 text-xs text-signal">{item.error}</p>}
+        <button key={item.id} onClick={() => onOpen(item.id)} className="glass-card research-card">
+          <FileText className="surface-icon" />
+          <div>
+            <h3 className="card-title">{item.question}</h3>
+            <div className="badge-row">
+              <StatusBadge status={item.status} />
+              <span className="meta-text">{formatDate(item.created_at)}</span>
             </div>
+            {item.error && <p className="error-text clamp-text">{item.error}</p>}
           </div>
         </button>
       ))}
@@ -364,18 +382,18 @@ function ResearchList({ items, empty, onOpen }: { items: ResearchRow[]; empty: s
 
 function ResultPanel({ active }: { active?: ResearchRow }) {
   return (
-    <section>
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Final Report</h2>
-      <div className="rounded border border-slate-200 bg-white p-5">
+    <section className="report-panel">
+      <SectionTitle>Final report</SectionTitle>
+      <div className="report-surface">
         {active?.report ? (
           <ReportView report={active.report} />
         ) : active?.error ? (
           <div>
-            <h3 className="font-semibold text-signal">Research failed</h3>
-            <p className="mt-2 text-sm leading-6 text-signal">{active.error}</p>
+            <h3 className="error-heading">Research failed</h3>
+            <p className="error-text">{active.error}</p>
           </div>
         ) : (
-          <p className="text-sm text-slate-500">Completed reports appear here.</p>
+          <p className="empty-copy">Completed reports will surface here.</p>
         )}
       </div>
     </section>
@@ -383,7 +401,7 @@ function ResultPanel({ active }: { active?: ResearchRow }) {
 }
 
 function EmptyState({ children }: { children: ReactNode }) {
-  return <div className="rounded border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-500">{children}</div>;
+  return <div className="empty-state">{children}</div>;
 }
 
 function ReportView({ report }: { report: Report }) {
@@ -411,19 +429,19 @@ function ReportView({ report }: { report: Report }) {
   ]);
   const extraSections = Object.entries(report).filter(([key, value]) => !renderedKeys.has(key) && value != null);
   return (
-    <article className="space-y-4">
-      <h1 className="text-xl font-semibold">{report.title ?? "Research Report"}</h1>
-      {summary && <p className="text-sm leading-6 text-slate-700">{summary}</p>}
+    <article className="report-content">
+      <h1>{report.title ?? "Research report"}</h1>
+      {summary && <p>{summary}</p>}
       {!!findings?.length && (
         <div>
-          <h3 className="mb-2 font-semibold">Key findings</h3>
-          <ul className="list-disc space-y-1 pl-5 text-sm">{findings.map((item) => <li key={item}>{item}</li>)}</ul>
+          <h3>Key findings</h3>
+          <ul>{findings.map((item) => <li key={item}>{item}</li>)}</ul>
         </div>
       )}
-      {!!limitations?.length && <p className="text-sm text-slate-500">Limitations: {limitations.join(" ")}</p>}
+      {!!limitations?.length && <p className="report-note">Limitations: {limitations.join(" ")}</p>}
       {extraSections.map(([key, value]) => (
         <section key={key}>
-          <h3 className="mb-2 font-semibold">{toTitle(key)}</h3>
+          <h3>{toTitle(key)}</h3>
           <ReportValue value={value} />
         </section>
       ))}
@@ -434,7 +452,7 @@ function ReportView({ report }: { report: Report }) {
 function ReportValue({ value }: { value: unknown }) {
   if (Array.isArray(value)) {
     return (
-      <ul className="list-disc space-y-1 pl-5 text-sm">
+      <ul>
         {value.map((item, index) => (
           <li key={index}>{formatValue(item)}</li>
         ))}
@@ -443,17 +461,72 @@ function ReportValue({ value }: { value: unknown }) {
   }
   if (value && typeof value === "object") {
     return (
-      <div className="space-y-2 text-sm">
+      <div className="report-object">
         {Object.entries(value as Record<string, unknown>).map(([key, nested]) => (
           <p key={key}>
-            <span className="font-medium">{toTitle(key)}: </span>
-            <span>{formatValue(nested)}</span>
+            <span>{toTitle(key)}: </span>
+            {formatValue(nested)}
           </p>
         ))}
       </div>
     );
   }
-  return <p className="text-sm leading-6 text-slate-700">{formatValue(value)}</p>;
+  return <p>{formatValue(value)}</p>;
+}
+
+function Panel({ title, items }: { title: string; items: Array<{ title: string; meta: string; href?: string }> }) {
+  return (
+    <section className="rail-section">
+      <h3>{title}</h3>
+      <div className="rail-list">
+        {items.length === 0 && <p className="empty-copy">None yet.</p>}
+        {items.map((item, index) => (
+          <a key={`${item.title}-${index}`} href={item.href} target={item.href ? "_blank" : undefined} className="rail-card">
+            <span>{item.title}</span>
+            <small>{item.meta}</small>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function RuntimeStatusStrip({ status }: { status: RuntimeStatus }) {
+  const blockers = [
+    ...(status.database.ok ? [] : ["Database unavailable"]),
+    ...status.llm.missing,
+    ...status.embeddings.missing.filter((item) => !status.llm.missing.includes(item)),
+    ...status.search.missing
+  ];
+  const ready = blockers.length === 0;
+  return (
+    <section className={`runtime-strip ${ready ? "is-ready" : "needs-config"}`}>
+      <span className="pulse-dot" aria-hidden="true" />
+      <strong>{ready ? "Runtime ready" : "Provider configuration needed"}</strong>
+      <span>
+        {ready
+          ? `Database, ${status.llm.provider}/${status.llm.model}, embeddings, and ${status.search.provider} search are configured.`
+          : `Missing: ${[...new Set(blockers)].join(", ")}. The app will not fabricate research without these.`}
+      </span>
+    </section>
+  );
+}
+
+function SectionTitle({ children }: { children: ReactNode }) {
+  return <h2 className="section-title">{children}</h2>;
+}
+
+function StatusBadge({ status }: { status: string }) {
+  return <span className={`status-badge status-${status}`}>{status}</span>;
+}
+
+function ActivityDot({ type }: { type: ActivityEvent["type"] }) {
+  const state = type.includes("failed") ? "fail" : type.includes("completed") || type.includes("generated") || type.includes("found") ? "done" : "running";
+  return <span className={`activity-dot is-${state}`} aria-hidden="true" />;
+}
+
+function toEventLabel(value: string) {
+  return value.replace(/_/g, " ");
 }
 
 function formatValue(value: unknown): string {
@@ -474,41 +547,4 @@ function toTitle(value: string) {
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
-}
-
-function Panel({ title, items }: { title: string; items: Array<{ title: string; meta: string; href?: string }> }) {
-  return (
-    <section className="mb-6">
-      <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</h3>
-      <div className="space-y-2">
-        {items.length === 0 && <p className="text-sm text-slate-500">None yet.</p>}
-        {items.map((item, index) => (
-          <a key={`${item.title}-${index}`} href={item.href} target={item.href ? "_blank" : undefined} className="block rounded border border-slate-200 p-3 text-sm hover:border-accent">
-            <span className="line-clamp-2 block">{item.title}</span>
-            <span className="mt-1 block text-xs text-slate-500">{item.meta}</span>
-          </a>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function RuntimeStatusStrip({ status }: { status: RuntimeStatus }) {
-  const blockers = [
-    ...(status.database.ok ? [] : ["Database unavailable"]),
-    ...status.llm.missing,
-    ...status.embeddings.missing.filter((item) => !status.llm.missing.includes(item)),
-    ...status.search.missing
-  ];
-  const ready = blockers.length === 0;
-  return (
-    <section className={`mb-5 rounded border px-4 py-3 text-sm ${ready ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-950"}`}>
-      <strong>{ready ? "Runtime ready" : "Provider configuration needed"}</strong>
-      <span className="ml-2">
-        {ready
-          ? `Database, ${status.llm.provider}/${status.llm.model}, embeddings, and ${status.search.provider} search are configured.`
-          : `Missing: ${[...new Set(blockers)].join(", ")}. The app will not fabricate research without these.`}
-      </span>
-    </section>
-  );
 }

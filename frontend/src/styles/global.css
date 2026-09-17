@@ -2,21 +2,1242 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─────────────────────────────────────────────────────────────────
+   DESIGN TOKENS — "Deep Current" palette
+   All color, spacing, radius, blur, shadow, and font values live
+   here. No magic hex values in component rules below.
+───────────────────────────────────────────────────────────────── */
+:root {
+  /* Canvas */
+  --bg-void:   #070A14;
+  --bg-void-2: #0D1424;
+
+  /* Glass materials */
+  --glass-surface:        rgba(230, 240, 255, 0.06);
+  --glass-surface-hover:  rgba(230, 240, 255, 0.10);
+  --glass-surface-strong: rgba(230, 240, 255, 0.14);
+  --glass-document:       rgba(10, 14, 28, 0.82);
+  --glass-border:         rgba(180, 220, 255, 0.16);
+  --glass-border-strong:  rgba(180, 220, 255, 0.30);
+  --glass-highlight:      rgba(255, 255, 255, 0.35);
+
+  /* Accents */
+  --accent-current:     #2DD4BF;
+  --accent-current-dim: #14B8A6;
+  --accent-violet:      #7C6AF0;
+
+  /* Text */
+  --text-primary:   #EAF2FF;
+  --text-secondary: #93A5C4;
+
+  /* Semantic status */
+  --status-success: #34D399;
+  --status-fail:    #F97066;
+  --status-running: var(--accent-violet);
+
+  /* Document surface (report panel) */
+  --doc-ink:   #D4E5FF;
+  --doc-muted: #7A9DC0;
+
+  /* Elevation radii — one value per tier */
+  --radius-panel: 20px;
+  --radius-card:  12px;
+  --radius-pill:  999px;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Blur */
+  --blur-glass: 20px;
+  --blur-deep:  40px;
+
+  /* Shadows — void-tinted, not grey */
+  --shadow-panel:   0 24px 80px rgba(7, 10, 20, 0.55),
+                    inset 0 1px 0 var(--glass-highlight);
+  --shadow-card:    0 12px 40px rgba(7, 10, 20, 0.45),
+                    inset 0 1px 0 rgba(180, 220, 255, 0.12);
+  --shadow-command: 0 32px 96px rgba(7, 10, 20, 0.70),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.20);
+
+  /* Typography */
+  --font-display: "Space Grotesk", "General Sans", Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-body:    Inter, "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   BASE RESET
+───────────────────────────────────────────────────────────────── */
 html,
 body,
 #root {
+  min-height: 100%;
   height: 100%;
 }
 
 body {
   margin: 0;
-  color: #17202a;
-  background: #f5f7f9;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  overflow: hidden;
+  /* Abyssal void — off-center radial teal glow, nothing else */
+  background:
+    radial-gradient(ellipse 70% 55% at 62% 58%, rgba(45, 212, 191, 0.07), transparent),
+    radial-gradient(ellipse 50% 40% at 15% 80%, rgba(124, 106, 240, 0.06), transparent),
+    linear-gradient(160deg, var(--bg-void) 0%, #0A1020 55%, var(--bg-void-2) 100%);
+}
+
+/* Subtle noise/grain layer for depth */
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  content: "";
+  /* Deep light bloom — no diagonal washes */
+  background:
+    radial-gradient(ellipse 90% 60% at 65% 55%, rgba(45, 212, 191, 0.055), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 8%  12%, rgba(124, 106, 240, 0.04), transparent 55%),
+    radial-gradient(ellipse 40% 50% at 90% 90%, rgba(13,  20,  36, 0.90), transparent 80%);
+  filter: blur(32px);
+}
+
+/* Vignette — darkens edges to increase "void" feel */
+body::after {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: "";
+  background:
+    radial-gradient(ellipse 90% 90% at 50% 48%, transparent 55%, rgba(7, 10, 20, 0.55) 100%),
+    linear-gradient(180deg, rgba(7, 10, 20, 0.28) 0%, transparent 12%, transparent 86%, rgba(7, 10, 20, 0.40) 100%);
 }
 
 button,
 textarea,
 input {
   font: inherit;
+}
+
+button,
+a,
+textarea,
+input {
+  outline: none;
+}
+
+/* Global focus ring — teal, keyboard only */
+button:focus-visible,
+a:focus-visible,
+textarea:focus-visible,
+input:focus-visible {
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.22), 0 0 0 1.5px var(--accent-current);
+}
+
+button {
+  color: inherit;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   LAYOUT — shell, stage, rails
+───────────────────────────────────────────────────────────────── */
+.auth-screen {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+}
+
+.app-shell {
+  min-height: 100%;
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr) 340px;
+  gap: var(--space-4);
+  padding: 52px var(--space-4) var(--space-4);
+  padding-bottom: 96px;
+  overflow: hidden;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   GLASS MATERIAL — shared mixin via selector grouping
+   Panels float at different elevations; elevation shown via
+   box-shadow depth, not border thickness.
+───────────────────────────────────────────────────────────────── */
+.glass-rail,
+.glass-panel,
+.glass-card,
+.runtime-strip,
+.command-bar,
+.empty-state {
+  position: relative;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-surface);
+  backdrop-filter: blur(var(--blur-glass)) saturate(140%);
+  overflow: hidden;
+}
+
+/* Single 1px specular highlight on top edge only —
+   simulates light hitting the top surface of glass */
+.glass-rail::before,
+.glass-panel::before,
+.runtime-strip::before,
+.command-bar::before {
+  position: absolute;
+  top: 0;
+  right: var(--space-5);
+  left: var(--space-5);
+  height: 1px;
+  content: "";
+  background: var(--glass-highlight);
+  opacity: 0.55;
+}
+
+/* Stacking context for child content */
+.glass-rail > *,
+.glass-panel > *,
+.runtime-strip > *,
+.command-bar > *,
+.empty-state > *,
+.top-dock > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   TOP DOCK (mobile nav pill)
+───────────────────────────────────────────────────────────────── */
+.top-dock {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  transform: translateX(-50%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-pill);
+  padding: 8px 12px;
+  background: rgba(13, 20, 36, 0.70);
+  box-shadow: var(--shadow-command);
+  backdrop-filter: blur(28px) saturate(140%);
+  overflow: hidden;
+}
+
+.top-dock::before {
+  position: absolute;
+  inset: 0 18px auto;
+  top: 0;
+  height: 1px;
+  content: "";
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.dock-item {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  background: transparent;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.dock-item:hover,
+.dock-item.is-active {
+  color: var(--accent-current);
+  background: rgba(45, 212, 191, 0.10);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   SIDEBAR RAIL
+───────────────────────────────────────────────────────────────── */
+.glass-rail {
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-panel);
+}
+
+.sidebar-rail,
+.right-rail {
+  min-height: 0;
+  overflow: auto;
+  padding: 26px 18px;
+}
+
+.main-stage {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-2);
+}
+
+/* Brand lockup */
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.brand-lockup h1,
+.brand-lockup span {
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+/* Placeholder Z-mark — replaced when real SVG lands at /brand/ */
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  background: var(--accent-current);
+  color: var(--bg-void);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  box-shadow: 0 0 18px rgba(45, 212, 191, 0.50);
+}
+
+.brand-icon {
+  width: 22px;
+  height: 22px;
+  color: var(--accent-current);
+  filter: drop-shadow(0 0 10px rgba(45, 212, 191, 0.55));
+}
+
+/* Nav list */
+.nav-list {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-8);
+}
+
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: var(--space-3);
+  border: 0;
+  border-radius: 14px;
+  padding: 12px 12px 12px 16px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+/* Teal left-rail accent bar — active state marker */
+.nav-item::before {
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 0;
+  width: 2.5px;
+  border-radius: var(--radius-pill);
+  content: "";
+  background: transparent;
+  transition: background 150ms ease, box-shadow 150ms ease;
+}
+
+.nav-item:hover {
+  color: var(--text-primary);
+  background: var(--glass-surface-hover);
+}
+
+.nav-item.is-active {
+  color: var(--text-primary);
+  background: var(--glass-surface-hover);
+}
+
+.nav-item.is-active::before {
+  background: var(--accent-current);
+  box-shadow: 0 0 16px rgba(45, 212, 191, 0.65);
+}
+
+.sidebar-note {
+  margin-top: var(--space-8);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.sidebar-note svg {
+  display: block;
+  margin-bottom: var(--space-2);
+  color: var(--accent-current);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   RUNTIME STATUS STRIP
+───────────────────────────────────────────────────────────────── */
+.runtime-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+  border-radius: var(--radius-panel);
+  padding: 12px 16px 12px 20px;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  line-height: 1.45;
+  box-shadow: var(--shadow-panel);
+  /* Teal left accent bar — default ready state */
+  border-left: 3px solid var(--accent-current);
+}
+
+.runtime-strip strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.runtime-strip.needs-config {
+  border-left-color: var(--status-fail);
+}
+
+/* Live pulse dot */
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  background: var(--accent-current);
+  box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.12), 0 0 14px rgba(45, 212, 191, 0.80);
+  animation: pulse-current 2.4s ease-in-out infinite;
+}
+
+.needs-config .pulse-dot {
+  background: var(--status-fail);
+  box-shadow: 0 0 0 4px rgba(249, 112, 102, 0.12), 0 0 14px rgba(249, 112, 102, 0.70);
+  animation: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   GLASS PANELS — main stage
+───────────────────────────────────────────────────────────────── */
+.glass-panel {
+  border-radius: var(--radius-panel);
+  margin-bottom: var(--space-5);
+  padding: 22px;
+  box-shadow: var(--shadow-panel);
+}
+
+/* ── Prompt panel: "Descent" signature moment ── */
+.prompt-panel {
+  transform-origin: 50% 100%;
+  transition:
+    transform 500ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    filter  500ms ease,
+    opacity 500ms ease;
+}
+
+.prompt-panel.is-descending {
+  transform: scale(0.984) translateY(6px);
+  filter: blur(0.4px);
+  opacity: 0.85;
+}
+
+/* ── Activity panel: rises forward on research start ── */
+.activity-panel {
+  overflow: hidden;
+  transition:
+    transform  520ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 520ms ease;
+}
+
+/* Radial glow behind panel — teal when idle, violet when running */
+.activity-panel::after {
+  position: absolute;
+  inset: auto -20% -50% 10%;
+  height: 200px;
+  pointer-events: none;
+  content: "";
+  background: radial-gradient(ellipse at center, rgba(45, 212, 191, 0.12), transparent 65%);
+  opacity: 0.6;
+  transition: background 600ms ease, opacity 600ms ease;
+}
+
+.activity-panel.is-rising::after {
+  background: radial-gradient(ellipse at center, rgba(124, 106, 240, 0.18), transparent 65%);
+  opacity: 1;
+  animation: activity-glow-pulse 3s ease-in-out infinite;
+}
+
+/* 3D tilt-in — the "Descent" signature moment */
+.activity-panel.is-rising {
+  transform: perspective(960px) rotateX(0deg) translateY(-4px);
+  box-shadow: 0 36px 100px rgba(7, 10, 20, 0.70),
+              0 0 0 1px rgba(124, 106, 240, 0.22),
+              inset 0 1px 0 var(--glass-highlight);
+  animation: activity-rise 520ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   TYPOGRAPHY — section + panel headings
+───────────────────────────────────────────────────────────────── */
+.section-title,
+.rail-title,
+.view-header h1 {
+  margin: 0 0 var(--space-3);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   PROMPT INPUT — deepest well on the page
+───────────────────────────────────────────────────────────────── */
+.prompt-input,
+.auth-input {
+  width: 100%;
+  border: 1px solid rgba(180, 220, 255, 0.16);
+  border-radius: 14px;
+  color: var(--text-primary);
+  background: rgba(7, 10, 20, 0.50);
+  /* Inset shadow simulates depth — like looking into a well */
+  box-shadow:
+    inset 0 2px 16px rgba(0, 0, 0, 0.40),
+    inset 0 1px 0 rgba(180, 220, 255, 0.06);
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.prompt-input {
+  min-height: 136px;
+  resize: vertical;
+  padding: 18px;
+  line-height: 1.55;
+  font-size: 15px;
+}
+
+.prompt-input::placeholder,
+.auth-input::placeholder {
+  color: var(--text-secondary);
+}
+
+/* Teal glowing ring on focus — not browser default outline */
+.prompt-input:focus,
+.auth-input:focus {
+  border-color: rgba(45, 212, 191, 0.55);
+  box-shadow:
+    inset 0 2px 16px rgba(0, 0, 0, 0.45),
+    0 0 0 3px rgba(45, 212, 191, 0.14),
+    0 0 0 1px rgba(45, 212, 191, 0.40);
+}
+
+.auth-input {
+  margin-bottom: var(--space-3);
+  padding: 12px 14px;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   BUTTONS
+───────────────────────────────────────────────────────────────── */
+.primary-action,
+.secondary-action,
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition:
+    background     150ms ease,
+    border-color   150ms ease,
+    box-shadow     150ms ease,
+    transform      150ms ease,
+    opacity        150ms ease;
+}
+
+/* Primary — teal glass button, no arrow glyph */
+.primary-action {
+  margin-top: var(--space-4);
+  border: 1px solid rgba(45, 212, 191, 0.50);
+  padding: 12px 22px;
+  color: var(--accent-current);
+  background: rgba(45, 212, 191, 0.10);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.primary-action:hover:not(:disabled) {
+  border-color: var(--accent-current);
+  background: rgba(45, 212, 191, 0.18);
+  box-shadow: 0 0 24px rgba(45, 212, 191, 0.18);
+}
+
+.primary-action:active:not(:disabled) {
+  transform: translateY(1px);
+  background: rgba(45, 212, 191, 0.22);
+}
+
+.primary-action:disabled,
+.icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+/* Secondary */
+.secondary-action {
+  margin-top: var(--space-4);
+  border: 1px solid var(--glass-border-strong);
+  padding: 10px 18px;
+  color: var(--text-primary);
+  background: var(--glass-surface);
+  font-size: 14px;
+}
+
+.secondary-action:hover {
+  background: var(--glass-surface-hover);
+}
+
+/* Icon button */
+.icon-button {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  background: var(--glass-surface);
+}
+
+.icon-button:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--glass-border-strong);
+  background: var(--glass-surface-hover);
+}
+
+.danger-button:hover {
+  color: var(--status-fail);
+  border-color: rgba(249, 112, 102, 0.30);
+  background: rgba(249, 112, 102, 0.06);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   AGENT ACTIVITY LOG
+───────────────────────────────────────────────────────────────── */
+.activity-list,
+.stack-list,
+.rail-list,
+.history-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.activity-row {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid rgba(180, 220, 255, 0.06);
+  animation: step-in 360ms ease both;
+  animation-delay: var(--stagger, 0ms);
+}
+
+.activity-row:last-child {
+  border-bottom: 0;
+}
+
+/* State dots — color-coded, no third-party iconography */
+.activity-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+}
+
+.activity-dot.is-running {
+  background: var(--accent-violet);
+  box-shadow: 0 0 10px rgba(124, 106, 240, 0.70);
+}
+
+.activity-dot.is-done {
+  background: var(--status-success);
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.60);
+}
+
+.activity-dot.is-fail {
+  background: var(--status-fail);
+  box-shadow: 0 0 10px rgba(249, 112, 102, 0.60);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   GLASS CARDS — list items and history entries
+───────────────────────────────────────────────────────────────── */
+.glass-card,
+.history-card,
+.rail-card {
+  position: relative;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+/* Subtle inner sheen — single light source from top-left */
+.glass-card::before,
+.history-card::before,
+.rail-card::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    radial-gradient(ellipse at 18% 14%, rgba(180, 220, 255, 0.10), transparent 38%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.05), transparent 48%);
+  opacity: 0.80;
+}
+
+.glass-card > *,
+.history-card > *,
+.rail-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.glass-card {
+  padding: 16px;
+  background: var(--glass-surface);
+  border: 1px solid var(--glass-border);
+}
+
+button.glass-card,
+.history-card {
+  width: 100%;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+/* Hover — surface brightens, no scale or bounce */
+.glass-card:hover,
+.history-card:hover {
+  border-color: rgba(180, 220, 255, 0.28);
+  background: var(--glass-surface-hover);
+}
+
+.rail-card:hover {
+  border-color: rgba(180, 220, 255, 0.28);
+  background: var(--glass-surface-hover);
+}
+
+/* Layout utilities used in cards */
+.research-card,
+.inline-row,
+.split-row,
+.badge-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.split-row {
+  justify-content: space-between;
+}
+
+.badge-row {
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   TEXT STYLES
+───────────────────────────────────────────────────────────────── */
+.card-title,
+.body-text,
+.meta-text,
+.empty-copy,
+.error-text {
+  margin: 0;
+}
+
+.card-title {
+  color: var(--text-primary);
+  font-size: 14.5px;
+  font-weight: 550;
+  line-height: 1.35;
+}
+
+.body-text {
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+/* Metadata — small, humanist sans, sentence case, never caps */
+.meta-text,
+.empty-copy {
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
+  line-height: 1.5;
+}
+
+.error-text,
+.error-heading {
+  color: var(--status-fail);
+}
+
+.error-heading {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-display);
+}
+
+/* Line-clamp utilities */
+.clamp-text,
+.history-question,
+.rail-card span {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+}
+
+.clamp-text         { -webkit-line-clamp: 2; }
+.history-question,
+.rail-card span     { -webkit-line-clamp: 3; }
+
+/* Icon sizes */
+.surface-icon,
+.icon-sm {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.surface-icon {
+  margin-top: 2px;
+  color: var(--accent-current);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   VIEW SHELLS — history / conversations / memory pages
+───────────────────────────────────────────────────────────────── */
+.view-shell {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.view-header {
+  margin-bottom: var(--space-5);
+}
+
+.view-header p {
+  margin: var(--space-2) 0 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.empty-state {
+  border-style: dashed;
+  border-radius: var(--radius-panel);
+  padding: var(--space-6) var(--space-5);
+  color: var(--text-secondary);
+  font-size: 14px;
+  box-shadow: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   FINAL REPORT PANEL — document surface, more readable than glass
+───────────────────────────────────────────────────────────────── */
+.report-panel {
+  margin-bottom: var(--space-5);
+}
+
+.report-surface {
+  /* Higher opacity than glass panels — document legibility first */
+  border: 1px solid rgba(180, 220, 255, 0.20);
+  border-radius: var(--radius-panel);
+  padding: var(--space-6);
+  color: var(--doc-ink);
+  background: rgba(10, 14, 30, 0.88);
+  box-shadow: 0 24px 72px rgba(7, 10, 20, 0.50),
+              inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(12px) saturate(120%);
+}
+
+.report-surface .empty-copy {
+  color: var(--text-secondary);
+}
+
+/* 70–80ch line-length cap per the brief */
+.report-content {
+  max-width: 78ch;
+}
+
+.report-content h1,
+.report-content h3 {
+  font-family: var(--font-display);
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.report-content h1 {
+  margin: 0 0 var(--space-5);
+  font-size: 26px;
+  line-height: 1.2;
+}
+
+.report-content h3 {
+  margin: var(--space-6) 0 var(--space-2);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.report-content p,
+.report-content li {
+  color: var(--doc-muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.report-content ul {
+  padding-left: 1.2rem;
+}
+
+.report-note {
+  border-left: 3px solid rgba(45, 212, 191, 0.40);
+  padding-left: var(--space-3);
+  color: var(--text-secondary);
+}
+
+.report-object p {
+  margin: 0 0 var(--space-2);
+}
+
+.report-object span {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   RIGHT RAIL — history + panels
+───────────────────────────────────────────────────────────────── */
+.rail-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 16px;
+}
+
+.history-list {
+  margin-bottom: var(--space-6);
+}
+
+.history-card {
+  border: 1px solid var(--glass-border);
+  padding: 13px;
+  color: var(--text-primary);
+  background: var(--glass-surface);
+}
+
+.history-question {
+  margin-bottom: var(--space-2);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* Status pill badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-pill);
+  padding: 3px 9px;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+.status-completed {
+  color: var(--status-success);
+  background: rgba(52, 211, 153, 0.10);
+  /* Static glow ring on completed — no motion */
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.07);
+}
+
+.status-failed {
+  color: var(--status-fail);
+  background: rgba(249, 112, 102, 0.10);
+}
+
+.status-running {
+  color: var(--accent-violet);
+  background: rgba(124, 106, 240, 0.12);
+}
+
+/* Rail sub-sections (Sources, Tool calls, Memory) */
+.rail-section {
+  margin-bottom: var(--space-6);
+}
+
+.rail-section h3 {
+  margin: 0 0 var(--space-3);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 550;
+  letter-spacing: 0.01em;
+}
+
+.rail-card {
+  display: block;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
+  padding: var(--space-3);
+  color: var(--text-primary);
+  text-decoration: none;
+  background: var(--glass-surface);
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.rail-card small {
+  display: block;
+  margin-top: var(--space-2);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   BOTTOM COMMAND BAR — floating glass pill, highest elevation
+───────────────────────────────────────────────────────────────── */
+.command-bar {
+  position: fixed;
+  right: 50%;
+  bottom: var(--space-4);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: min(460px, calc(100vw - 32px));
+  transform: translateX(50%);
+  border-radius: var(--radius-pill);
+  padding: 11px 12px 11px 20px;
+  color: var(--text-secondary);
+  /* Strongest shadow — closest surface to the user */
+  box-shadow: var(--shadow-command);
+  background: rgba(10, 16, 32, 0.82);
+  font-size: 13.5px;
+}
+
+.command-icon {
+  width: 17px;
+  height: 17px;
+  color: var(--accent-current);
+  /* Breathing glow — idle only, CSS animation */
+  animation: breathe-glow 3.2s ease-in-out infinite;
+}
+
+.command-bar span {
+  flex: 1;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   AUTH PANEL
+───────────────────────────────────────────────────────────────── */
+.auth-panel {
+  width: min(380px, 100%);
+  border-radius: var(--radius-panel);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-panel);
+}
+
+.auth-panel .brand-lockup {
+  margin-bottom: var(--space-6);
+}
+
+.auth-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   UTILITY
+───────────────────────────────────────────────────────────────── */
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   KEYFRAMES
+───────────────────────────────────────────────────────────────── */
+
+/* Pulse dot — teal, gentle */
+@keyframes pulse-current {
+  0%, 100% {
+    box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.12), 0 0 14px rgba(45, 212, 191, 0.75);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(45, 212, 191, 0.06), 0 0 26px rgba(45, 212, 191, 0.95);
+  }
+}
+
+/* Activity panel 3D tilt-in — the "Descent" signature moment */
+@keyframes activity-rise {
+  0% {
+    transform: perspective(960px) rotateX(8deg) translateY(12px);
+    opacity: 0.80;
+  }
+  100% {
+    transform: perspective(960px) rotateX(0deg) translateY(-4px);
+    opacity: 1;
+  }
+}
+
+/* Ambient glow on activity panel while running */
+@keyframes activity-glow-pulse {
+  0%, 100% { opacity: 0.85; }
+  50%       { opacity: 1.0;  }
+}
+
+/* Log line staggered entry — each step slides up from 6px */
+@keyframes step-in {
+  0% {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Mic icon breathing glow — idle command bar only */
+@keyframes breathe-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px rgba(45, 212, 191, 0.30));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(45, 212, 191, 0.80));
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   RESPONSIVE — single-column mobile layout
+───────────────────────────────────────────────────────────────── */
+@media (max-width: 1180px) {
+  body {
+    overflow: auto;
+  }
+
+  .app-shell {
+    min-height: auto;
+    grid-template-columns: 220px minmax(0, 1fr);
+    overflow: visible;
+  }
+
+  .right-rail {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    padding: var(--space-3);
+    padding-bottom: 92px;
+  }
+
+  .sidebar-rail,
+  .right-rail,
+  .main-stage {
+    overflow: visible;
+  }
+
+  .nav-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: var(--space-5);
+  }
+
+  .nav-item {
+    min-height: 44px;
+  }
+
+  .runtime-strip,
+  .split-row,
+  .auth-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .report-surface {
+    padding: var(--space-5);
+  }
+
+  .report-content h1 {
+    font-size: 22px;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   REDUCED MOTION — globally respected
+   "Descent" becomes a simple cross-fade; all other motion off.
+───────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  /* Cross-fade fallback for the signature Descent moment */
+  .prompt-panel.is-descending {
+    transform: none;
+    filter: none;
+    opacity: 0.70;
+  }
+
+  .activity-panel.is-rising {
+    transform: none;
+    animation: none;
+  }
+
+  .pulse-dot {
+    animation: none;
+  }
+
+  .command-icon {
+    animation: none;
+  }
 }
