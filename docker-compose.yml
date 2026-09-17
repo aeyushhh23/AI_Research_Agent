@@ -23,9 +23,9 @@ services:
     environment:
       DATABASE_URL: postgres://postgres:postgres@db:5432/ai_research_agent
       FRONTEND_ORIGIN: http://localhost:5173
-      MCP_RESEARCH_ARGS: ../mcp-servers/dist/research/server.js
-      MCP_GITHUB_ARGS: ../mcp-servers/dist/github/server.js
-      MCP_MEMORY_ARGS: ../mcp-servers/dist/memory/server.js
+      MCP_RESEARCH_ARGS: mcp-servers/dist/research/server.js
+      MCP_GITHUB_ARGS: mcp-servers/dist/github/server.js
+      MCP_MEMORY_ARGS: mcp-servers/dist/memory/server.js
     ports:
       - "4000:4000"
     depends_on:

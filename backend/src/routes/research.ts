@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { ResearchAgent } from "../agent/ResearchAgent.js";
+import { assertResearchPreflight } from "../config/runtimeStatus.js";
 import { query } from "../db/pool.js";
 import { requireAuth } from "../middleware/auth.js";
 import { onActivity } from "../services/events.js";
@@ -28,6 +29,7 @@ router.post("/", async (req, res, next) => {
         conversationId: z.string().uuid().optional()
       })
       .parse(req.body);
+    await assertResearchPreflight();
 
     const conversationId =
       body.conversationId ??
@@ -45,7 +47,9 @@ router.post("/", async (req, res, next) => {
     const researchId = created.rows[0].id;
     await query("INSERT INTO messages (conversation_id, role, content) VALUES ($1, 'user', $2)", [conversationId, body.question]);
 
-    void new ResearchAgent().run(researchId, req.user!.id, body.question).catch(() => undefined);
+    void new ResearchAgent().run(researchId, req.user!.id, body.question).catch((error) => {
+      console.error("Research run failed", { researchId, error });
+    });
     res.status(202).json({ researchId, conversationId, status: "running" });
   } catch (error) {
     next(error);

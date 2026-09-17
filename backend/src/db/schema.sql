@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS memories (
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   content text NOT NULL,
   kind text NOT NULL DEFAULT 'preference',
-  embedding vector(768) NOT NULL,
+  embedding vector(3072) NOT NULL,
   metadata jsonb NOT NULL DEFAULT '{}',
   created_at timestamptz NOT NULL DEFAULT now()
 );
@@ -81,6 +81,21 @@ CREATE TABLE IF NOT EXISTS agent_runs (
   error text
 );
 
-CREATE INDEX IF NOT EXISTS memories_embedding_idx ON memories USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 CREATE INDEX IF NOT EXISTS research_projects_user_idx ON research_projects(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS tool_calls_research_idx ON tool_calls(research_id, started_at DESC);
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_name = 'memories'
+      AND column_name = 'embedding'
+      AND udt_name = 'vector'
+  ) THEN
+    DROP INDEX IF EXISTS memories_embedding_idx;
+    ALTER TABLE memories
+      ALTER COLUMN embedding TYPE vector(3072)
+      USING embedding::vector(3072);
+  END IF;
+END $$;

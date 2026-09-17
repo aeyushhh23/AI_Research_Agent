@@ -43,29 +43,28 @@ export class ResearchAgent {
     );
     emitActivity(makeEvent(researchId, "research_started", "Research started."));
 
-    const graph = new StateGraph(State)
-      .addNode("retrieveMemory", this.retrieveMemory.bind(this))
-      .addNode("plan", this.plan.bind(this))
-      .addNode("selectTool", this.selectTool.bind(this))
-      .addNode("executeTool", this.executeTool.bind(this))
-      .addNode("evaluate", this.evaluate.bind(this))
-      .addNode("analyze", this.analyze.bind(this))
-      .addNode("extractMemory", this.extractMemory.bind(this))
-      .addEdge(START, "retrieveMemory")
-      .addEdge("retrieveMemory", "plan")
-      .addEdge("plan", "selectTool")
-      .addConditionalEdges("selectTool", (state) => (state.nextTool ? "executeTool" : "analyze"))
-      .addEdge("executeTool", "evaluate")
-      .addConditionalEdges("evaluate", (state) => {
-        const timedOut = Date.now() - state.startedAt > config.MAX_RESEARCH_TIME * 1000;
-        if (state.error || timedOut || state.toolCallCount >= config.MAX_TOOL_CALLS) return "analyze";
-        return state.nextTool ? "executeTool" : "analyze";
-      })
-      .addEdge("analyze", "extractMemory")
-      .addEdge("extractMemory", END)
-      .compile();
-
     try {
+      const graph = new StateGraph(State)
+        .addNode("retrieveMemory", this.retrieveMemory.bind(this))
+        .addNode("planResearch", this.plan.bind(this))
+        .addNode("selectTool", this.selectTool.bind(this))
+        .addNode("executeTool", this.executeTool.bind(this))
+        .addNode("evaluateEvidence", this.evaluate.bind(this))
+        .addNode("analyzeEvidence", this.analyze.bind(this))
+        .addNode("extractMemory", this.extractMemory.bind(this))
+        .addEdge(START, "retrieveMemory")
+        .addEdge("retrieveMemory", "planResearch")
+        .addEdge("planResearch", "selectTool")
+        .addConditionalEdges("selectTool", (state) => (state.nextTool ? "executeTool" : "analyzeEvidence"))
+        .addEdge("executeTool", "evaluateEvidence")
+        .addConditionalEdges("evaluateEvidence", (state) => {
+          const timedOut = Date.now() - state.startedAt > config.MAX_RESEARCH_TIME * 1000;
+          if (state.error || timedOut || state.toolCallCount >= config.MAX_TOOL_CALLS) return "analyzeEvidence";
+          return state.nextTool ? "executeTool" : "analyzeEvidence";
+        })
+        .addEdge("analyzeEvidence", "extractMemory")
+        .addEdge("extractMemory", END)
+        .compile();
       const result = await graph.invoke({
         researchId,
         userId,
@@ -154,8 +153,9 @@ export class ResearchAgent {
       }
     ]);
     if (selected.done || !selected.tool) return { nextTool: null };
-    this.assertAllowedTool(selected.tool);
-    return { nextTool: selected.tool };
+    const tool = this.normalizePlannedTool(selected.tool);
+    this.assertAllowedTool(tool);
+    return { nextTool: tool };
   }
 
   private async executeTool(state: AgentState): Promise<Partial<AgentState>> {
@@ -198,8 +198,9 @@ export class ResearchAgent {
       }
     ]);
     if (decision.sufficient || !decision.nextTool) return { nextTool: null };
-    this.assertAllowedTool(decision.nextTool);
-    return { nextTool: decision.nextTool };
+    const tool = this.normalizePlannedTool(decision.nextTool);
+    this.assertAllowedTool(tool);
+    return { nextTool: tool };
   }
 
   private async analyze(state: AgentState): Promise<Partial<AgentState>> {
@@ -308,8 +309,81 @@ export class ResearchAgent {
       throw new Error(`Tool is not allowlisted: ${tool.server}.${tool.toolName}`);
     }
   }
+
+  private normalizePlannedTool(raw: unknown): PlannedToolCall {
+    if (!raw || typeof raw !== "object") throw new Error("Model returned an invalid tool selection.");
+    const value = raw as Record<string, unknown>;
+    const rawArgs = value.arguments ?? value.args ?? value.input;
+    const argObject = rawArgs && typeof rawArgs === "object" && !Array.isArray(rawArgs) ? (rawArgs as Record<string, unknown>) : undefined;
+    const explicitAction = value.action ?? value.operation ?? argObject?.action ?? argObject?.operation;
+    const rawToolName = explicitAction ?? value.toolName ?? value.name ?? value.tool ?? argObject?.toolName ?? argObject?.name ?? argObject?.tool;
+    const splitName = splitQualifiedToolName(rawToolName);
+    const toolCandidate = splitName?.toolName ?? rawToolName;
+    const server =
+      value.server ??
+      value.serverName ??
+      argObject?.server ??
+      argObject?.serverName ??
+      splitName?.server ??
+      (typeof value.tool === "string" && allowedTools.has(value.tool) ? value.tool : undefined) ??
+      (typeof value.name === "string" && allowedTools.has(value.name) ? value.name : undefined) ??
+      (typeof argObject?.tool === "string" && allowedTools.has(argObject.tool) ? argObject.tool : undefined) ??
+      (typeof argObject?.name === "string" && allowedTools.has(argObject.name) ? argObject.name : undefined) ??
+      inferServer(toolCandidate);
+    const toolName = toolCandidate;
+    if (typeof server !== "string" || typeof toolName !== "string") {
+      throw new Error(`Model returned an incomplete tool selection: ${JSON.stringify(raw).slice(0, 500)}`);
+    }
+    const nestedArgs = this.normalizeToolArguments(server, toolName, rawArgs, value);
+    return {
+      server: server as PlannedToolCall["server"],
+      toolName: toolName as PlannedToolCall["toolName"],
+      arguments: nestedArgs as Record<string, unknown>,
+      reason: typeof value.reason === "string" ? value.reason : "Selected by agent planner."
+    };
+  }
+
+  private normalizeToolArguments(server: string, toolName: string, rawArgs: unknown, value: Record<string, unknown>) {
+    if (rawArgs && typeof rawArgs === "object" && !Array.isArray(rawArgs)) {
+      const args = stripPlannerFields(rawArgs as Record<string, unknown>);
+      if (Object.keys(args).length > 0) return args;
+    }
+    if (typeof rawArgs === "string") {
+      if (["searchWeb", "searchNews", "searchCode", "searchMemory"].includes(toolName)) return { query: rawArgs };
+      if (toolName === "fetchWebPage") return { url: rawArgs };
+      if (toolName === "readFile") return { path: rawArgs };
+    }
+
+    const topLevelArgs = Object.fromEntries(
+      Object.entries(value).filter(([key]) => !["server", "serverName", "tool", "toolName", "name", "action", "operation", "reason", "arguments", "args", "input", "done"].includes(key))
+    );
+    if (Object.keys(topLevelArgs).length > 0) return topLevelArgs;
+
+    throw new Error(`Model returned invalid tool arguments for ${server}.${toolName}: ${JSON.stringify(value).slice(0, 500)}`);
+  }
 }
 
 function toolNameLabel(tool: PlannedToolCall) {
   return `${tool.toolName}`;
+}
+
+function inferServer(toolName: unknown) {
+  if (typeof toolName !== "string") return undefined;
+  for (const [server, tools] of allowedTools.entries()) {
+    if (tools.has(toolName)) return server;
+  }
+  return undefined;
+}
+
+function splitQualifiedToolName(toolName: unknown) {
+  if (typeof toolName !== "string") return undefined;
+  const match = toolName.match(/^([A-Za-z]+)[.:/]([A-Za-z]+)$/);
+  if (!match) return undefined;
+  return { server: match[1], toolName: match[2] };
+}
+
+function stripPlannerFields(value: Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.entries(value).filter(([key]) => !["server", "serverName", "tool", "toolName", "name", "action", "operation", "reason", "done"].includes(key))
+  );
 }

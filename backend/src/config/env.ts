@@ -24,13 +24,14 @@ const schema = z.object({
   GITHUB_TOKEN: z.string().optional(),
   MAX_TOOL_CALLS: z.coerce.number().int().positive().default(15),
   MAX_RESEARCH_TIME: z.coerce.number().int().positive().default(120),
+  MCP_TOOL_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
   MAX_SOURCE_BYTES: z.coerce.number().int().positive().default(120000),
   MCP_RESEARCH_COMMAND: z.string().default("node"),
-  MCP_RESEARCH_ARGS: z.string().default("../mcp-servers/dist/research/server.js"),
+  MCP_RESEARCH_ARGS: z.string().default("mcp-servers/dist/research/server.js"),
   MCP_GITHUB_COMMAND: z.string().default("node"),
-  MCP_GITHUB_ARGS: z.string().default("../mcp-servers/dist/github/server.js"),
+  MCP_GITHUB_ARGS: z.string().default("mcp-servers/dist/github/server.js"),
   MCP_MEMORY_COMMAND: z.string().default("node"),
-  MCP_MEMORY_ARGS: z.string().default("../mcp-servers/dist/memory/server.js")
+  MCP_MEMORY_ARGS: z.string().default("mcp-servers/dist/memory/server.js")
 });
 
 export const config = schema.parse(process.env);
