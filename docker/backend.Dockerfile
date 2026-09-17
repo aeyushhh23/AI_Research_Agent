@@ -9,3 +9,4 @@ RUN npm install
 COPY . .
 RUN npm run build -w @ai-research-agent/shared && npm run build -w @ai-research-agent/mcp-servers && npm run build -w @ai-research-agent/backend
 EXPOSE 4000
+CMD ["sh", "-c", "npm run migrate -w backend && node backend/dist/server.js"]
